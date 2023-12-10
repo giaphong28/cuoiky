@@ -12,6 +12,13 @@ st.set_page_config(page_title="Movie Web", layout="wide")
 st.header("Sản phẩm demo Web Application")
 st.markdown("***")
 poster_data = pd.read_csv("movie_poster.csv", names=["itemID", "url"])
+
+movies = pickle.load(open("movie_list.pkl", 'rb'))
+similarity = np.load("similarity.npy")
+movies_list=movies['title'].values
+#import top 15 popular movies
+top15 = pd.read_csv('top15_popular.csv',delimiter=',')
+
 # @st.cache()
 # Hàm liên kết với mongodb
 def get_collection(connection_str):
@@ -24,7 +31,6 @@ def fetchposter(movie_id):
     url = str(poster_data[poster_data["itemID"] == movie_id]["url"].values[0])
     return url
 # Nhập userID
-userID = st.number_input("Nhập vào id người dùng: ", min_value=1, max_value=6040, step=1)
 def fetch_img_url(id):
     connection_str = "mongodb://longnguyenuit:ZkhrACfJflUhurRi1xUBFVLXMxNQrn2czSp5yHvomR4pvzmRPJX4niIdQT0FxdJCRVUtTx0eUkv4ACDbiTmXsQ%3D%3D@longnguyenuit.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@longnguyenuit@"
     res_collection = get_collection(connection_str)
@@ -33,15 +39,10 @@ def fetch_img_url(id):
     img_urls = []
     for row in data:
         for movieID in row["itemIDs"]:
-            img_urls.append(fetchposter(movieID))
+            try:
+                img_urls.append(fetchposter(movieID))
+            except: continue
     return img_urls
-
-
-movies = pickle.load(open("movie_list.pkl", 'rb'))
-similarity = np.load("similarity.npy")
-movies_list=movies['title'].values
-#import top 15 popular movies
-top15 = pd.read_csv('top15_popular.csv',delimiter=',')
 
 def fetch_topmovies():
     title = []
@@ -59,6 +60,39 @@ def fetch_poster(movie_id):
   poster_path = data['poster_path']
   full_path = "https://image.tmdb.org/t/p/w500/"+poster_path
   return full_path
+
+# st.header("Recent hot movies")
+st.subheader("Các bộ phim nổi tiếng gần đây")
+imageCarouselComponent1 = components.declare_component("image-carousel-component", path="frontend/public")
+
+top_title,top_id = fetch_topmovies()
+top_poster=[]
+for i in top_id:
+    top_poster.append(i)
+# imageUrls = [
+#     fetch_poster(1632),
+#     fetch_poster(299536),
+#     fetch_poster(17455),
+#     fetch_poster(2830),
+#     fetch_poster(429422),
+#     fetch_poster(9722),
+#     fetch_poster(13972),
+#     fetch_poster(240),
+#     fetch_poster(155),
+#     fetch_poster(598),
+#     fetch_poster(914),
+#     fetch_poster(255709),
+#     fetch_poster(572154)
+   
+#     ]
+
+imageCarouselComponent1(imageUrls=top_poster, height=200)
+
+st.markdown('***')
+
+st.subheader('Đề xuất phim theo ID người dùng')
+userID = st.number_input("Nhập vào id người dùng: ", min_value=1, max_value=6040, step=1)
+
 
 # st.header("Recent hot movies")
 imageCarouselComponent = components.declare_component("image-carousel-component", path="frontend/public")
@@ -80,7 +114,6 @@ image_urls = fetch_img_url(userID)
 #     fetch_poster(572154)
    
 #     ]
-
 
 imageCarouselComponent(imageUrls=image_urls, height=200)
 
@@ -110,8 +143,8 @@ def recommend(movie):
 # with board:
     # Initialize session state
 st.session_state.text = st.session_state.get('text', 'selectvalue')
-
-selectvalue=st.selectbox("Search or select movies from this dropdown", movies_list)
+st.subheader("Đề xuất phim dựa trên phim được chọn")
+selectvalue=st.selectbox("Nhập hoặc tìm kiếm tên phim", movies_list)
 
 st.session_state['text']=selectvalue
 movie_name,movie_poster,movies_overview,movie_genre,movie_vote,movie_date = recommend(st.session_state['text'])
@@ -132,7 +165,7 @@ with movie_2:
 
 st.markdown("***")
 
-if st.button("Show Recommend"):
+if st.button("Đề xuất phim"):
     movie_name,movie_poster,movies_overview,movie_genre,movie_vote,movie_date = recommend(st.session_state['text'])
     col1,col2,col3,col4=st.columns(4)
     with col1:
