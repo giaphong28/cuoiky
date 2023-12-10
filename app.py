@@ -6,6 +6,36 @@ import streamlit.components.v1 as components
 from streamlit_elements import elements, mui, html, sync
 from streamlit_star_rating import st_star_rating
 import pandas as pd
+import pymongo
+
+st.set_page_config(page_title="Movie Web", layout="wide")
+st.header("Sản phẩm demo Web Application")
+st.markdown("***")
+poster_data = pd.read_csv("movie_poster.csv", names=["itemID", "url"])
+# @st.cache()
+# Hàm liên kết với mongodb
+def get_collection(connection_str):
+    myclient = pymongo.MongoClient(connection_str)
+    mydb = myclient["result"]
+    mycol = mydb["06-12-2023"]
+    return mycol
+# Hàm lấy hình ảnh - bổ sung thêm title các thứ
+def fetchposter(movie_id):
+    url = str(poster_data[poster_data["itemID"] == movie_id]["url"].values[0])
+    return url
+# Nhập userID
+userID = st.number_input("Nhập vào id người dùng: ", min_value=1, max_value=6040, step=1)
+def fetch_img_url(id):
+    connection_str = "mongodb://longnguyenuit:ZkhrACfJflUhurRi1xUBFVLXMxNQrn2czSp5yHvomR4pvzmRPJX4niIdQT0FxdJCRVUtTx0eUkv4ACDbiTmXsQ%3D%3D@longnguyenuit.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&replicaSet=globaldb&maxIdleTimeMS=120000&appName=@longnguyenuit@"
+    res_collection = get_collection(connection_str)
+    # Duyệt qua từng dòng trên collection dựa trên userID, duyệt qua các movieID trong list 10 movieID
+    data = res_collection.find({"userID": id})
+    img_urls = []
+    for row in data:
+        for movieID in row["itemIDs"]:
+            img_urls.append(fetchposter(movieID))
+    return img_urls
+
 
 movies = pickle.load(open("movie_list.pkl", 'rb'))
 similarity = np.load("similarity.npy")
@@ -31,10 +61,9 @@ def fetch_poster(movie_id):
   return full_path
 
 # st.header("Recent hot movies")
-# imageCarouselComponent = components.declare_component("image-carousel-component", path="frontend/public")
+imageCarouselComponent = components.declare_component("image-carousel-component", path="frontend/public")
 
-
-
+image_urls = fetch_img_url(userID)
 # imageUrls = [
 #     fetch_poster(1632),
 #     fetch_poster(299536),
@@ -53,9 +82,9 @@ def fetch_poster(movie_id):
 #     ]
 
 
-# imageCarouselComponent(imageUrls=imageUrls, height=200)
+imageCarouselComponent(imageUrls=image_urls, height=200)
 
-
+st.markdown('***')
   
 def recommend(movie):
     index=movies[movies['title']== movie].index[0]
